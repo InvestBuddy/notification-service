@@ -42,13 +42,13 @@ pipeline {
             }
         }
        
-       stage('Build and SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQubeServer') {
-                    bat 'mvn sonar:sonar -Dsonar.login=%SONAR_TOKEN%'
-                }
-            }
-        }
+       // stage('Build and SonarQube Analysis') {
+       //      steps {
+       //          withSonarQubeEnv('SonarQubeServer') {
+       //              bat 'mvn sonar:sonar -Dsonar.login=%SONAR_TOKEN%'
+       //          }
+       //      }
+       //  }
 	// stage('Quality Gate') {
 	//     steps {
 	//         script {
@@ -115,21 +115,29 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    withKubeConfig([credentialsId: 'kubectl']) {
-                        // Ensure kubectl is configured and available in the Jenkins environment
-                        bat """
-                            kubectl apply -f notification-service-db-deployment.yml
-                            kubectl apply -f notification-service-db-service.yml
-                            kubectl apply -f notification-service-deployment.yml
-                            kubectl apply -f notification-service-service.yml
-                        """
-                    }
-                }
-            }
-        }
+			 stage('Deploy to Kubernetes') {
+			     steps {
+			        script {
+			           // Replace a placeholder in user-service.yml with the build number
+			          if (isUnix()) {
+			             sh "sed -i 's#<BUILD_NUMBER>#${BUILD_NUMBER}#g' notification-service.yml"
+			           } 
+				   else {
+			                bat "powershell -Command \"(Get-Contentnotification-service.yml) -replace '<BUILD_NUMBER>', '${BUILD_NUMBER}' | Set-Content notification-service.yml\""
+			            }
+			
+			            withKubeConfig([credentialsId: 'kubectl']) {
+			              if (isUnix()) {
+			                sh 'kubectl apply -f notification-service.yml'
+			             } else {
+			                bat 'kubectl apply -f notification-service.yml'
+			               }
+			             }
+			          }
+			     }
+			}
+
+	    
     }
 
 	post {
