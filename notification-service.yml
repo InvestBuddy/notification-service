@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: abakhar217/notification-service:notification-service-<BUILD_NUMBER>
+          ports:
+            - containerPort: 8083
+          env:
+            # Kafka Configuration
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-deployment:9092"
+            - name: KAFKA_TOPIC
+              value: "user-events" # You can change this based on your application topic
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+  type: ClusterIP
