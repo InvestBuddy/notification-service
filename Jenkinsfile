@@ -115,27 +115,26 @@ pipeline {
             }
         }
 
-			 stage('Deploy to Kubernetes') {
-			     steps {
-			        script {
-			           // Replace a placeholder in user-service.yml with the build number
-			          if (isUnix()) {
-			             sh "sed -i 's#<BUILD_NUMBER>#${BUILD_NUMBER}#g' notification-service.yml"
-			           } 
-				   else {
-			                bat "powershell -Command \"(Get-Contentnotification-service.yml) -replace '<BUILD_NUMBER>', '${BUILD_NUMBER}' | Set-Content notification-service.yml\""
-			            }
-			
-			            withKubeConfig([credentialsId: 'kubectl']) {
-			              if (isUnix()) {
-			                sh 'kubectl apply -f notification-service.yml'
-			             } else {
-			                bat 'kubectl apply -f notification-service.yml'
-			               }
-			             }
-			          }
-			     }
-			}
+	stage('Deploy to Kubernetes') {
+	    steps {
+	        script {
+	           // Replace a placeholder in user-service.yml with the build number
+	          if (isUnix()) {
+	             sh "sed -i 's#<BUILD_NUMBER>#${BUILD_NUMBER}#g' notification-service.yml"
+	           } 
+			   else {
+	               bat "powershell -Command \"(Get-Content ${WORKSPACE}/notification-service.yml) -replace '<BUILD_NUMBER>', '${BUILD_NUMBER}' | Set-Content ${WORKSPACE}/notification-service.yml\""
+	           }
+	            withKubeConfig([credentialsId: 'kubectl']) {
+	              if (isUnix()) {
+	                sh 'kubectl apply -f notification-service.yml'
+	             } else {
+	                bat 'kubectl apply -f notification-service.yml'
+	               }
+	             }
+	          }
+	     }
+	}
 
 	    
     }
