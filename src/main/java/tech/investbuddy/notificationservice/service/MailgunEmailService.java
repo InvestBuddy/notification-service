@@ -6,32 +6,68 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 import tech.investbuddy.notificationservice.properties.MailgunProperties;
+
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @Service
 @RequiredArgsConstructor
 public class MailgunEmailService {
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final MailgunProperties mailgunProperties;
 
-    public void sendVerificationEmail(String to, String subject, String text) {
-        String url = String.format("%s/%s/messages", mailgunProperties.getBaseUrl(), mailgunProperties.getDomain());
+    public void sendVerificationEmail(String to, String subject, String htmlContent) {
+        try {
+            // Construire l'URI de la requête Mailgun avec UriComponentsBuilder.fromUriString
+            URI uri = UriComponentsBuilder.fromUriString(mailgunProperties.getBaseUrl())
+                    .pathSegment(mailgunProperties.getDomain(), "messages")
+                    .build()
+                    .toUri();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBasicAuth("api", mailgunProperties.getApiKey());
+            // Préparer les headers avec authentification
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth("api", mailgunProperties.getApiKey());
+            headers.set("Content-Type", "application/x-www-form-urlencoded");
 
-        String requestBody = String.format(
-                "from=%s&to=%s&subject=%s&text=%s",
-                "no-reply@" + mailgunProperties.getDomain(), to, subject, text
-        );
+            // Construire le corps de la requête pour HTML
+            String requestBody = buildRequestBody(
+                    "no-reply@" + mailgunProperties.getDomain(),
+                    to,
+                    subject,
+                    htmlContent
+            );
 
-        headers.set("Content-Type", "application/x-www-form-urlencoded");
+            // Préparer et envoyer la requête POST
+            HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(uri, request, String.class);
 
-        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Failed to send email: " + response.getBody());
+            // Vérifier la réponse
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Failed to send email: " + response.getBody());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error while sending email: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Construit le corps de la requête en encodant les champs selon "application/x-www-form-urlencoded".
+     */
+    private String buildRequestBody(String from, String to, String subject, String htmlContent) {
+        return "from=" + encode(from) +
+                "&to=" + encode(to) +
+                "&subject=" + encode(subject) +
+                "&html=" + encode(htmlContent); // Utilisation de "html" pour les e-mails enrichi
+    }
+
+    /**
+     * Méthode utilitaire pour encoder les valeurs selon "application/x-www-form-urlencoded".
+     */
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }
