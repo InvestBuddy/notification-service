@@ -1,4 +1,4 @@
-package tech.investbuddy.notificationservice.service;
+/*package tech.investbuddy.notificationservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,6 +108,7 @@ public class KafkaConsumer {
                             <p>
                                 <a href="%s" class="button">Verify My Email</a>
                             </p>
+                            <a href="test.com" class="button">Verify My Email</a>
                             <p>If the button above doesn’t work, you can also verify your email by copying and pasting the following link into your browser:</p>
                             <p><a href="%s">%s</a></p>
                             <p>Thank you,<br>The InvestBuddy Team</p>
@@ -120,4 +121,45 @@ public class KafkaConsumer {
                 </html>
                 """.formatted(verificationLink, verificationLink, verificationLink);
     }
+}*/
+
+package tech.investbuddy.notificationservice.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class KafkaConsumer {
+
+    private final MailgunEmailService mailgunEmailService;
+    private final ObjectMapper objectMapper;
+
+    @KafkaListener(topics = "user-created", groupId = "notification-group")
+    public void handleUserEmailVerification(String message) {
+        System.out.println("Message reçu : " + message);
+
+        try {
+            // Parse le message JSON
+            JsonNode jsonNode = objectMapper.readTree(message);
+            String email = jsonNode.get("email").asText();
+            String verificationToken = jsonNode.get("verificationToken").asText();
+
+            // Construire le lien de vérification
+            String verificationLink = "http://localhost:8080/api/v1/users/auth/verify-email?token=" + verificationToken;
+
+            // Envoyer l'email
+            mailgunEmailService.sendVerificationEmail(
+                    email,
+                    "Verify Your Email Address",
+                    verificationLink
+            );
+        } catch (Exception e) {
+            System.err.println("Erreur lors du traitement du message Kafka : " + e.getMessage());
+        }
+    }
 }
+
